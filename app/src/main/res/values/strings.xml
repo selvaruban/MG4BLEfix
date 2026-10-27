@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MG Bluetooth Auto Pair</string>
+    <string name="accessibility_service_label">MG Bluetooth Auto Pair Service</string>
+    <string name="accessibility_service_description">Automatically accepts Bluetooth pairing requests from designated devices such as MG car systems.</string>
+</resources>
