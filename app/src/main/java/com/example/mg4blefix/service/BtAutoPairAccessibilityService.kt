@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.example.mg4blefix.data.DevicePreferencesRepository
+import com.example.mg4blefix.util.BtCleanupManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,7 +17,7 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "BtAutoPairService"
-        private const val DEBOUNCE_DELAY_MS = 500L
+        private const val DEBOUNCE_DELAY_MS = 1000L
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -42,6 +43,11 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+
+        // 1. Ignore events originating from our own app UI (com.example.mg4blefix)
+        if (event.packageName == packageName) {
+            return
+        }
 
         val eventType = event.eventType
         if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
@@ -88,42 +94,37 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
                 return
             }
 
-            // Verify if this is a Bluetooth pairing or permission window
-            val isTargetDialog = screenText.contains("pair", ignoreCase = true) ||
-                    screenText.contains("bluetooth", ignoreCase = true) ||
-                    screenText.contains("passkey", ignoreCase = true) ||
-                    screenText.contains("confirm", ignoreCase = true) ||
-                    screenText.contains("code", ignoreCase = true) ||
-                    screenText.contains("contact", ignoreCase = true) ||
-                    screenText.contains("call history", ignoreCase = true) ||
-                    screenText.contains("call log", ignoreCase = true) ||
-                    screenText.contains("phonebook", ignoreCase = true) ||
-                    screenText.contains("message", ignoreCase = true) ||
-                    screenText.contains("access", ignoreCase = true)
+            val lowerText = screenText.lowercase()
 
-            if (!isTargetDialog) {
+            // Verify explicit Bluetooth pairing or contact permission prompt criteria
+            val isPairingPrompt = lowerText.contains("pair") ||
+                    lowerText.contains("bluetooth") ||
+                    lowerText.contains("passkey") ||
+                    lowerText.contains("code")
+
+            val isContactPermissionPrompt = (lowerText.contains("contact") ||
+                    lowerText.contains("call history") ||
+                    lowerText.contains("call log") ||
+                    lowerText.contains("phonebook")) &&
+                    (lowerText.contains("access") || lowerText.contains("allow") || lowerText.contains("share"))
+
+            if (!isPairingPrompt && !isContactPermissionPrompt) {
                 return
             }
 
             Log.i(TAG, "Detected Bluetooth pairing/permission dialog for '$targetName'")
 
-            // 1. Check contact access / call history checkbox if present and unchecked
+            // 1. Auto-check contact access / call history checkbox if present and unchecked
             for (node in allNodes) {
                 if (node.isCheckable) {
                     val nodeText = (node.text?.toString() ?: "") + " " + (node.contentDescription?.toString() ?: "")
                     val isContactCheck = nodeText.contains("contact", ignoreCase = true) ||
                             nodeText.contains("call history", ignoreCase = true) ||
-                            nodeText.contains("access", ignoreCase = true) ||
-                            nodeText.isBlank()
+                            nodeText.contains("access", ignoreCase = true)
 
                     if (isContactCheck && !node.isChecked) {
                         Log.i(TAG, "Checking contact/call history access checkbox...")
-                        if (performClick(node)) {
-                            val now = System.currentTimeMillis()
-                            serviceScope.launch {
-                                preferencesRepository.updateLastPairedTimestamp(now)
-                            }
-                        }
+                        performClick(node)
                     }
                 }
             }
@@ -153,7 +154,10 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
                         Log.i(TAG, "Successfully accepted prompt '$text' for device '$targetName'")
 
                         serviceScope.launch {
-                            preferencesRepository.updateLastPairedTimestamp(now)
+                            preferencesRepository.recordAutomatedAction(now)
+
+                            // Automatically cleanup stale/duplicate "MG" entries in background
+                            BtCleanupManager.cleanupStaleDevices(applicationContext, targetName)
                         }
                         break
                     }

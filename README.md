@@ -23,7 +23,8 @@ Having to manually unlock your phone and tap **Pair** and **Allow** every time y
 
 - 🤖 **Automated Pairing Acceptance:** Detects pairing prompts containing `"MG"` (or your custom target device name) and automatically simulates an `ACTION_CLICK` on **Pair** / **Allow** / **Confirm**.
 - 📇 **Automated Contact & Call Log Access:** Auto-checks *"Allow access to your contacts and call history"* checkboxes and approves follow-up contact sharing permission popups automatically.
-- 🕒 **Last Automated Action Timestamp:** Displays a real-time timestamp on the dashboard showing the exact date and time the app last auto-accepted a prompt.
+- 📊 **Run Counter & Timestamp:** Tracks and displays how many times the service has auto-paired along with the exact date/time of the last action.
+- 🧹 **Duplicate "MG" Bluetooth Device Cleanup:** Automatically unpairs leftover/stale `"MG"` entries from Bluetooth settings (both automatically after pairing and on-demand via a UI button).
 - ⚙️ **Configurable Target Device Name:** Custom target device name (default: `MG`) saved persistently using **Preferences DataStore**.
 - 🎨 **Modern Jetpack Compose UI:** Minimal single-activity dashboard displaying real-time service status (Active / Disabled).
 - 🔓 **Android 13/14 Restricted Settings Guidance:** Built-in UI helper directing users through bypassing Android 13+ *"Restricted Setting"* security locks on sideloaded accessibility services.
