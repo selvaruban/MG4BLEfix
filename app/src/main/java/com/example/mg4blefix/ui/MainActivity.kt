@@ -50,6 +50,9 @@ import com.example.mg4blefix.data.DevicePreferencesRepository
 import com.example.mg4blefix.service.BtAutoPairAccessibilityService
 import com.example.mg4blefix.ui.theme.MG4BLEfixTheme
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -76,6 +79,7 @@ fun MainScreen(preferencesRepository: DevicePreferencesRepository) {
 
     var isServiceEnabled by remember { mutableStateOf(false) }
     val savedDeviceName by preferencesRepository.targetDeviceName.collectAsState(initial = DevicePreferencesRepository.DEFAULT_DEVICE_NAME)
+    val lastPairedTimestamp by preferencesRepository.lastPairedTimestamp.collectAsState(initial = 0L)
     var deviceNameInput by remember(savedDeviceName) { mutableStateOf(savedDeviceName) }
 
     // Re-check service status whenever activity comes to foreground
@@ -121,6 +125,32 @@ fun MainScreen(preferencesRepository: DevicePreferencesRepository) {
                     context.startActivity(intent)
                 }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Last Automated Action Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Last Automated Action",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = formatTimestamp(lastPairedTimestamp),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -284,6 +314,14 @@ fun RestrictedSettingsCard(
             }
         }
     }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    if (timestamp == 0L) {
+        return "Never (Waiting for first auto-pair)"
+    }
+    val sdf = SimpleDateFormat("MMM dd, yyyy - hh:mm:ss a", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }
 
 private fun isAccessibilityServiceEnabled(context: Context, serviceClass: Class<*>): Boolean {

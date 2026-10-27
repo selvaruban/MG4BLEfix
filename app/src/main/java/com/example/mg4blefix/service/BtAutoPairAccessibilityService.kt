@@ -118,7 +118,12 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
 
                     if (isContactCheck && !node.isChecked) {
                         Log.i(TAG, "Checking contact/call history access checkbox...")
-                        performClick(node)
+                        if (performClick(node)) {
+                            val now = System.currentTimeMillis()
+                            serviceScope.launch {
+                                preferencesRepository.updateLastPairedTimestamp(now)
+                            }
+                        }
                     }
                 }
             }
@@ -143,8 +148,13 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
                 if (matchesPositive) {
                     Log.i(TAG, "Attempting ACTION_CLICK on positive button: '$text'")
                     if (performClick(node)) {
-                        lastHandledTime = System.currentTimeMillis()
+                        val now = System.currentTimeMillis()
+                        lastHandledTime = now
                         Log.i(TAG, "Successfully accepted prompt '$text' for device '$targetName'")
+
+                        serviceScope.launch {
+                            preferencesRepository.updateLastPairedTimestamp(now)
+                        }
                         break
                     }
                 }

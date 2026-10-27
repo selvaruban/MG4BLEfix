@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +16,7 @@ class DevicePreferencesRepository(private val context: Context) {
 
     companion object {
         val KEY_TARGET_DEVICE_NAME = stringPreferencesKey("target_device_name")
+        val KEY_LAST_PAIRED_TIMESTAMP = longPreferencesKey("last_paired_timestamp")
         const val DEFAULT_DEVICE_NAME = "MG"
     }
 
@@ -22,9 +24,19 @@ class DevicePreferencesRepository(private val context: Context) {
         preferences[KEY_TARGET_DEVICE_NAME] ?: DEFAULT_DEVICE_NAME
     }
 
+    val lastPairedTimestamp: Flow<Long> = context.dataStore.data.map { preferences ->
+        preferences[KEY_LAST_PAIRED_TIMESTAMP] ?: 0L
+    }
+
     suspend fun updateTargetDeviceName(name: String) {
         context.dataStore.edit { preferences ->
             preferences[KEY_TARGET_DEVICE_NAME] = name.ifBlank { DEFAULT_DEVICE_NAME }
+        }
+    }
+
+    suspend fun updateLastPairedTimestamp(timestamp: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_LAST_PAIRED_TIMESTAMP] = timestamp
         }
     }
 }
