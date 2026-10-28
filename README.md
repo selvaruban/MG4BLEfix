@@ -1,39 +1,40 @@
-# MG Bluetooth Auto Pair 🚗📱
+# MG4 Bluetooth Auto Pair 🚗⚡
 
 [![Android Min SDK](https://img.shields.io/badge/Min%20SDK-28%20(Android%209)-brightgreen)](https://developer.android.com/about/versions/pie)
 [![Android Target SDK](https://img.shields.io/badge/Target%20SDK-34%20(Android%2014)-blue)](https://developer.android.com/about/versions/14)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-purple)](https://kotlinlang.org/)
 [![UI Framework](https://img.shields.io/badge/UI-Jetpack%20Compose-darkgreen)](https://developer.android.com/jetpack/compose)
 
-An automated Android Accessibility Service that automatically detects and accepts Bluetooth pairing confirmation dialogs and contact/call log access requests from in-car infotainment systems (specifically targeting **MG** vehicles).
+An automated Android Accessibility Service designed specifically for **MG4 Electric Vehicles** (and other MG models) to automatically detect and accept Bluetooth pairing confirmation prompts and contact/call log access requests from the in-car infotainment system.
 
 ---
 
 ## 🛑 Problem Statement
 
-Certain **MG car Bluetooth infotainment units** have a known firmware quirk where their Bluetooth MAC address changes dynamically upon vehicle restart/reboot. As a result, the phone treats every boot as a new device attempting to pair, triggering repeated Bluetooth pairing prompts and follow-up contact sharing permissions.
+The **MG4 Electric Vehicle** (and certain other MG models) has a known infotainment firmware quirk where its Bluetooth MAC address changes dynamically upon vehicle restart or reboot. As a result, paired phones treat every car startup as a new device, triggering repeated Bluetooth pairing prompts (*"Check pairing codes - Pair with MG?"*) and follow-up contact sharing permission popups.
 
-Having to manually unlock your phone and tap **Pair** and **Allow** every time you get into your car is inconvenient and unsafe while driving.
+Having to manually unlock your phone and tap **Pair** and **Allow** every time you enter your MG4 is inconvenient and unsafe while driving.
 
 ---
 
 ## ✨ Solution & Key Features
 
-**MG Bluetooth Auto Pair** runs a background `AccessibilityService` (`BtAutoPairAccessibilityService`) that continuously monitors window events for pairing requests matching your vehicle's name.
+**MG4 Bluetooth Auto Pair** runs a background `AccessibilityService` (`BtAutoPairAccessibilityService`) that continuously monitors system window events for pairing requests originating from your MG4.
 
-- 🤖 **Automated Pairing Acceptance:** Detects pairing prompts containing `"MG"` (or your custom target device name) and automatically simulates an `ACTION_CLICK` on **Pair** / **Allow** / **Confirm**.
+- 🤖 **Automated Pairing Acceptance:** Detects exact system pairing prompts containing `"MG"` / `"Pair with MG"` and automatically simulates an `ACTION_CLICK` on **Pair** / **Allow** / **Confirm**.
 - 📇 **Automated Contact & Call Log Access:** Auto-checks *"Allow access to your contacts and call history"* checkboxes and approves follow-up contact sharing permission popups automatically.
-- 📊 **Run Counter & Timestamp:** Tracks and displays how many times the service has auto-paired along with the exact date/time of the last action.
-- 🧹 **Duplicate "MG" Bluetooth Device Cleanup:** Automatically unpairs leftover/stale `"MG"` entries from Bluetooth settings (both automatically after pairing and on-demand via a UI button).
+- 📊 **Run Counter & Timestamp:** Tracks and displays how many times the service has auto-paired along with the exact date/time of the last action (with a manual reset option).
+- 🧹 **Duplicate "MG" Bluetooth Device Cleanup:** Automatically unpairs leftover/stale `"MG"` entries from Android Bluetooth settings (both automatically after pairing and on-demand via a UI button) to prevent accumulating dozens of duplicate device entries.
 - ⚙️ **Configurable Target Device Name:** Custom target device name (default: `MG`) saved persistently using **Preferences DataStore**.
-- 🎨 **Modern Jetpack Compose UI:** Minimal single-activity dashboard displaying real-time service status (Active / Disabled).
+- 🎨 **Modern Jetpack Compose UI:** Minimal single-activity dashboard displaying real-time service status (Active / Disabled) and Battery Optimization status.
 - 🔓 **Android 13/14 Restricted Settings Guidance:** Built-in UI helper directing users through bypassing Android 13+ *"Restricted Setting"* security locks on sideloaded accessibility services.
-- ⚡ **High Performance & Safe:** Safe tree traversal with explicit `AccessibilityNodeInfo` recycling to prevent memory leaks and a `500ms` debounce threshold for rapid back-to-back prompts.
+- ⚡ **High Performance & Safe:** Safe tree traversal with explicit `AccessibilityNodeInfo` recycling to prevent memory leaks and strict system-package filtering.
 
 ---
 
 ## 🛠️ Architecture & Tech Stack
 
+- **Target Vehicle:** MG4 EV & MG Infotainment Systems
 - **Language:** 100% Idiomatic Kotlin
 - **UI:** Jetpack Compose with Material 3 Design
 - **State & Storage:** Preferences DataStore & Kotlin Coroutines Flow
@@ -64,13 +65,12 @@ On Android 13+ (API 33+), sideloaded apps have accessibility toggles greyed out 
 3. Tap the **3 dots (⋮)** in the top-right corner of the App Info screen.
 4. Tap **Allow restricted settings** and authenticate via PIN/Fingerprint.
 
-### 3. Activate the Accessibility Service
+### 3. Activate the Accessibility Service & Unrestricted Battery
 
 1. Open the **MG Bluetooth Auto Pair** app.
 2. Tap **Enable Accessibility Service** (or go to *Settings > Accessibility > Downloaded Apps*).
-3. Select **MG Bluetooth Auto Pair Service**.
-4. Toggle the switch to **ON** and confirm the system dialog.
-5. Re-open the app — the status card will display a green **Service Active** banner.
+3. Select **MG Bluetooth Auto Pair Service** and toggle it **ON**.
+4. Tap **Grant Unrestricted Battery Access** to prevent Android from sleeping the service while driving.
 
 ---
 
@@ -78,15 +78,14 @@ On Android 13+ (API 33+), sideloaded apps have accessibility toggles greyed out 
 
 ```mermaid
 graph TD
-    A[Bluetooth Pairing Request / Permission Dialog Appears] --> B[AccessibilityService listens to TYPE_WINDOW_STATE_CHANGED]
-    B --> C[Traverse Active Window Hierarchy]
-    C --> D{Contains Target Device Name e.g. 'MG'?}
+    A[Bluetooth Pairing Request / Permission Dialog Appears from MG4] --> B[AccessibilityService listens to TYPE_WINDOW_STATE_CHANGED]
+    B --> C[Verify System Package Whitelist & Target Name 'MG']
+    C --> D{Is Exact MG4 Pairing / Permission Prompt?}
     D -- No --> E[Ignore Event]
-    D -- Yes --> F{Is Pairing / Permission Prompt?}
-    F -- Yes --> G[Check Contact/Call History Checkbox if present]
-    G --> H[Find Positive Action Button: 'Pair' / 'Allow' / 'Confirm']
-    H --> I[Perform ACTION_CLICK on button or clickable parent container]
-    I --> J[Log Success & Recycle Node Hierarchy]
+    D -- Yes --> F[Check Contact/Call History Checkbox if present]
+    F --> G[Find Positive Action Button: 'Pair' / 'Allow' / 'Confirm']
+    G --> H[Perform ACTION_CLICK on 'Pair']
+    H --> I[Log Stats, Increment Counter & Auto-Clean Duplicate 'MG' Entries]
 ```
 
 ---
