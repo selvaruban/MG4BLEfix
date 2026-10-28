@@ -7,6 +7,9 @@
 
 An automated Android Accessibility Service designed specifically for **MG4 Electric Vehicles** (and other MG models) to automatically detect and accept Bluetooth pairing confirmation prompts and contact/call log access requests from the in-car infotainment system.
 
+> [!IMPORTANT]
+> **Installation Requirement:** This app must be installed on your **Android Smartphone** (not on the car's infotainment system). It runs in the background on your phone to detect and accept pairing dialogs as soon as your MG4 attempts to connect.
+
 ---
 
 ## 🛑 Problem Statement
@@ -19,7 +22,7 @@ Having to manually unlock your phone and tap **Pair** and **Allow** every time y
 
 ## ✨ Solution & Key Features
 
-**MG4 Bluetooth Auto Pair** runs a background `AccessibilityService` (`BtAutoPairAccessibilityService`) that continuously monitors system window events for pairing requests originating from your MG4.
+**MG4 Bluetooth Auto Pair** runs a background `AccessibilityService` (`BtAutoPairAccessibilityService`) on your Android phone that continuously monitors system window events for pairing requests originating from your MG4.
 
 - 🤖 **Automated Pairing Acceptance:** Detects exact system pairing prompts containing `"MG"` / `"Pair with MG"` and automatically simulates an `ACTION_CLICK` on **Pair** / **Allow** / **Confirm**.
 - 📇 **Automated Contact & Call Log Access:** Auto-checks *"Allow access to your contacts and call history"* checkboxes and approves follow-up contact sharing permission popups automatically.
@@ -34,6 +37,7 @@ Having to manually unlock your phone and tap **Pair** and **Allow** every time y
 
 ## 🛠️ Architecture & Tech Stack
 
+- **Device:** Android Smartphone (Android 9+ / API 28+)
 - **Target Vehicle:** MG4 EV & MG Infotainment Systems
 - **Language:** 100% Idiomatic Kotlin
 - **UI:** Jetpack Compose with Material 3 Design
@@ -45,9 +49,12 @@ Having to manually unlock your phone and tap **Pair** and **Allow** every time y
 
 ## 🚀 Setup & Installation Guide
 
-### 1. Build and Sideload the APK
+> [!NOTE]
+> Install the APK directly on your **Android smartphone** that you pair with your car.
 
-Clone the repository and install the debug APK to your device using Android Studio or ADB:
+### 1. Build and Install the APK on Your Android Phone
+
+Clone the repository and install the debug APK to your Android phone using Android Studio or ADB:
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/MG4BLEfix.git
@@ -56,19 +63,19 @@ cd MG4BLEfix
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 2. Enable Restricted Settings (Android 13 & 14+)
+### 2. Enable Restricted Settings on Your Phone (Android 13 & 14+)
 
 On Android 13+ (API 33+), sideloaded apps have accessibility toggles greyed out by default (*"Restricted setting"*):
 
-1. Open **MG Bluetooth Auto Pair** on your phone.
+1. Open **MG Bluetooth Auto Pair** on your Android phone.
 2. Tap **Open App Info** on the red warning card.
 3. Tap the **3 dots (⋮)** in the top-right corner of the App Info screen.
 4. Tap **Allow restricted settings** and authenticate via PIN/Fingerprint.
 
 ### 3. Activate the Accessibility Service & Unrestricted Battery
 
-1. Open the **MG Bluetooth Auto Pair** app.
-2. Tap **Enable Accessibility Service** (or go to *Settings > Accessibility > Downloaded Apps*).
+1. Open the **MG Bluetooth Auto Pair** app on your phone.
+2. Tap **Enable Accessibility Service** (or go to *Phone Settings > Accessibility > Downloaded Apps*).
 3. Select **MG Bluetooth Auto Pair Service** and toggle it **ON**.
 4. Tap **Grant Unrestricted Battery Access** to prevent Android from sleeping the service while driving.
 
@@ -78,7 +85,7 @@ On Android 13+ (API 33+), sideloaded apps have accessibility toggles greyed out 
 
 ```mermaid
 graph TD
-    A[Bluetooth Pairing Request / Permission Dialog Appears from MG4] --> B[AccessibilityService listens to TYPE_WINDOW_STATE_CHANGED]
+    A[Bluetooth Pairing Request / Permission Dialog Appears on Phone] --> B[AccessibilityService listens to TYPE_WINDOW_STATE_CHANGED]
     B --> C[Verify System Package Whitelist & Target Name 'MG']
     C --> D{Is Exact MG4 Pairing / Permission Prompt?}
     D -- No --> E[Ignore Event]
