@@ -17,9 +17,9 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "BtAutoPairService"
-        private const val DEBOUNCE_DELAY_MS = 1500L
+        private const val DEBOUNCE_DELAY_MS = 1000L
 
-        // Whitelisted system packages responsible for Bluetooth pairing & permission dialogs
+        // Whitelisted system & framework packages that render Bluetooth pairing & permission popups
         private val SYSTEM_PACKAGES = setOf(
             "com.android.settings",
             "com.google.android.settings.intelligence",
@@ -30,7 +30,11 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
             "com.samsung.android.bluetooth",
             "com.google.android.permissioncontroller",
             "com.android.permissioncontroller",
-            "com.samsung.android.permissioncontroller"
+            "com.samsung.android.permissioncontroller",
+            "com.google.android.gms",                       // Google Play Services (renders "Check pairing codes")
+            "com.google.android.companiondeviceprovider",
+            "com.samsung.android.easysetup",
+            "com.samsung.android.mobileservice"
         )
     }
 
@@ -63,11 +67,12 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
         // 1. Ignore events originating from our own app UI
         if (pkgName == packageName) return
 
-        // 2. System package whitelist
+        // 2. System & framework package whitelist
         val isSystemPackage = SYSTEM_PACKAGES.contains(pkgName) ||
                 pkgName.endsWith(".settings") ||
                 pkgName.endsWith(".bluetooth") ||
-                pkgName.endsWith(".permissioncontroller")
+                pkgName.endsWith(".permissioncontroller") ||
+                pkgName.contains("gms")
 
         if (!isSystemPackage) {
             return
@@ -120,24 +125,30 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
             }
 
             val lowerText = screenText.lowercase()
+            val lowerTarget = targetName.lowercase()
 
-            // 2. Exact Dialog Structure Matching based on screenshot:
-            // "Check pairing codes" / "Pair with MG? Confirm that this passkey is shown on MG."
-            val isExactPairingDialog = lowerText.contains("check pairing codes") ||
-                    lowerText.contains("pair with " + targetName.lowercase()) ||
+            // 2. Match Popup #1: Pairing Confirmation Dialog
+            // "Check pairing codes" - "Pair with MG? Confirm that this passkey is shown on MG." - "For security, don't enter this code anywhere."
+            val isPairingDialog = lowerText.contains("check pairing codes") ||
+                    lowerText.contains("pair with $lowerTarget") ||
                     (lowerText.contains("passkey") && lowerText.contains("shown on")) ||
+                    lowerText.contains("don't enter this code anywhere") ||
                     (lowerText.contains("pairing code") && lowerText.contains("security"))
 
-            val isContactPermissionPrompt = (lowerText.contains("contact") || lowerText.contains("call log") || lowerText.contains("call history")) &&
-                    (lowerText.contains("access") || lowerText.contains("allow") || lowerText.contains("permission"))
+            // 3. Match Popup #2: Contact Access Permission Dialog
+            // "Allow access to contacts?" - "A Bluetooth device (MG) wants to access your contacts and call history."
+            val isContactDialog = lowerText.contains("allow access to contacts") ||
+                    (lowerText.contains("wants to access your contacts") && lowerText.contains("call history")) ||
+                    (lowerText.contains("incoming and outgoing calls") && lowerText.contains("connected to $lowerTarget")) ||
+                    (lowerText.contains("contact") && lowerText.contains("call history") && lowerText.contains("allow"))
 
-            if (!isExactPairingDialog && !isContactPermissionPrompt) {
+            if (!isPairingDialog && !isContactDialog) {
                 return
             }
 
-            Log.i(TAG, "Detected exact target Bluetooth dialog in '$pkgName' for '$targetName'")
+            Log.i(TAG, "Detected target dialog (Pairing: $isPairingDialog, Contact: $isContactDialog) in '$pkgName' for '$targetName'")
 
-            // 3. Optional: Check contact access checkbox if embedded in dialog
+            // 4. Check contact access checkbox if present and unchecked
             for (node in allNodes) {
                 if (node.isCheckable) {
                     val nodeText = (node.text?.toString() ?: "") + " " + (node.contentDescription?.toString() ?: "")
@@ -151,20 +162,19 @@ class BtAutoPairAccessibilityService : AccessibilityService() {
                 }
             }
 
-            // 4. Locate and click positive action button ("Pair", "Allow", "Confirm")
-            // Specifically look for exact button text "Pair" or "Allow"
+            // 5. Locate and click positive action button ("Pair", "Allow", "Confirm")
             val positiveKeywords = listOf("Pair", "Allow", "OK", "Confirm", "Yes", "Grant")
             val negativeKeywords = listOf("Cancel", "Don't allow", "Deny", "No", "Reject")
 
             for (node in allNodes) {
                 val text = (node.text?.toString()?.trim() ?: node.contentDescription?.toString()?.trim()) ?: continue
 
-                // Skip negative options ("Cancel")
+                // Skip negative options ("Cancel", "Deny")
                 if (negativeKeywords.any { text.equals(it, ignoreCase = true) }) {
                     continue
                 }
 
-                // Check for positive action button ("Pair", "Allow")
+                // Match positive button text ("Pair", "Allow")
                 val matchesPositive = positiveKeywords.any { keyword ->
                     text.equals(keyword, ignoreCase = true)
                 }
